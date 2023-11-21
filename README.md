@@ -29,16 +29,23 @@ Example of endpoint that use GET Request with body
 
    ```bash
    ./gradlew build
-
+   ```
+   
+   ```bash
    ./gradlew bootRun
    ```
 
 If you don't have JAVA you can run application inside a Docker container:
 
-1. **Build the Docker image using the Dockerfile and run the container:**
+1. **Build the Docker image using the Dockerfile:**
 
    ```bash
    docker build https://github.com/rybalkin-an/get-with-body.git -t image-name:latest
+   ```
+   
+2. **Run the container:**
+
+   ```bash
    docker run -p 8080:8080 image-name
    ```
 The application will start on http://localhost:8080.
@@ -46,7 +53,7 @@ The application will start on http://localhost:8080.
 ### Usage
 
 ```
-Request method:	GET
+Request method:	GET                                       <= Request
 Request URI:	http://localhost:8080/api/getExample
 Proxy:			<none>
 Request params:	<none>
@@ -58,14 +65,14 @@ Cookies:		<none>
 Multiparts:		<none>
 Body:
 someText
-200
+200                                                       <= Response
 Content-Type: text/plain;charset=ISO-8859-1
 Content-Length: 49
 
-Response from GET request with body: someText
+Response from GET request with body: someText           
 ```
 ```
-Request method:	POST
+Request method:	POST                                      <= Request
 Request URI:	http://localhost:8080/api/postExample
 Proxy:			<none>
 Request params:	<none>
@@ -76,7 +83,7 @@ Headers:		Content-Type=text/plain
 Cookies:		<none>
 Multiparts:		<none>
 Body:			<none>
-200
+200                                                       <= Response
 Content-Type: text/plain;charset=ISO-8859-1
 Content-Length: 39
 
