@@ -22,11 +22,24 @@ Example of endpoint that use GET Request with body
    ```bash
    ./gradlew build
    ```
+   
 ### Run the Application
+
+1. **If you have installed Java 17 and Gradle 8.3 on you PC:**
+
    ```bash
    ./gradlew build
 
    ./gradlew bootRun
+   ```
+
+If you don't have JAVA you can run application inside a Docker container:
+
+1. **Build the Docker image using the Dockerfile and run the container:**
+
+   ```bash
+   docker build -t image-name .
+   docker run -p 8080:8080 image-name
    ```
 The application will start on http://localhost:8080.
 
