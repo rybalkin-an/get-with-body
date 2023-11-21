@@ -38,7 +38,7 @@ If you don't have JAVA you can run application inside a Docker container:
 1. **Build the Docker image using the Dockerfile and run the container:**
 
    ```bash
-   docker build -t image-name .
+   docker build https://github.com/rybalkin-an/get-with-body.git -t image-name:latest
    docker run -p 8080:8080 image-name
    ```
 The application will start on http://localhost:8080.
