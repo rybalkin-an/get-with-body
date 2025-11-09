@@ -1,0 +1,83 @@
+name: Release image to GHCR
+
+on:
+  release: { types: [published] }
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag"
+        required: false
+      image:
+        description: "Image name within GHCR"
+        required: false
+        default: myapp
+      latest:
+        description: "Tag and push :latest?"
+        required: false
+        default: "yes"
+        type: choice
+        options: ["yes", "no"]
+      platforms:
+        description: "Target platforms"
+        required: false
+        default: "linux/amd64,linux/arm64"
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: ${{ inputs.image || 'myapp' }}
+  RAW_TAG: ${{ inputs.tag || github.ref_name }}
+  PLATFORMS: ${{ inputs.platforms || 'linux/amd64,linux/arm64' }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Normalize tag and decide 'latest'
+      - name: Prepare tags
+        id: prep
+        shell: bash
+        run: |
+          RAW="${{ env.RAW_TAG }}"
+          # default to a manual tag if none (e.g., manual-<run#>-<shortsha>)
+          if [[ -z "$RAW" || "$RAW" == "null" ]]; then
+            RAW="manual-${{ github.run_number }}-${{ github.sha::0:7 }}"
+          fi
+          CLEAN="${RAW#v}"                       # strip leading v
+          echo "tag=$CLEAN" >> $GITHUB_OUTPUT
+          # push :latest only if requested AND tag looks like x.y.z
+          if [[ "${{ inputs.latest || 'yes' }}" == "yes" && "$CLEAN" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "latest=true" >> $GITHUB_OUTPUT
+          else
+            echo "latest=false" >> $GITHUB_OUTPUT
+          fi
+          echo "name=${{ env.IMAGE_NAME }}" >> $GITHUB_OUTPUT
+
+      - name: Build & push (multi-arch + cache)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ env.PLATFORMS }}
+          push: true
+          provenance: false
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ steps.prep.outputs.name }}:${{ steps.prep.outputs.tag }}
+            ${{ steps.prep.outputs.latest == 'true' && format('ghcr.io/{0}/{1}:latest', github.repository_owner, steps.prep.outputs.name) || '' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

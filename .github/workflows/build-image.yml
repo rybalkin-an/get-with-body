@@ -1,0 +1,11 @@
+name: Build docker image
+on:
+  push: { branches: [ main ] }
+  pull_request:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build (no push)
+        run: docker build -t temp-image:ci .
