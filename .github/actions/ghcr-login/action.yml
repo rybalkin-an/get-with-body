@@ -10,8 +10,8 @@ inputs:
     description: "Registry username (default: github.actor)"
     required: false
   token:
-    description: "Registry token (default: GITHUB_TOKEN)"
-    required: false
+    description: "Registry token (e.g. GITHUB_TOKEN or PAT)"
+    required: true
 
 runs:
   using: "composite"
@@ -21,4 +21,4 @@ runs:
       with:
         registry: ${{ inputs.registry }}
         username: ${{ inputs.username || github.actor }}
-        password: ${{ inputs.token || secrets.GITHUB_TOKEN }}
+        password: ${{ inputs.token }}

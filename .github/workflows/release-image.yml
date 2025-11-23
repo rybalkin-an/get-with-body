@@ -27,13 +27,12 @@ jobs:
         with:
           java-version: "17"
           gradle-args: "test"
-          working-directory: "."
 
       - name: Login to GHCR
         uses: ./.github/actions/ghcr-login
         with:
           registry: ghcr.io
-          # token: ${{ secrets.GHCR_TOKEN }} # optional override
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Compute Docker tags and labels
         id: meta
