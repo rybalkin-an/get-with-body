@@ -1,0 +1,24 @@
+name: "GHCR login"
+description: "Log into GHCR (or other registry)"
+
+inputs:
+  registry:
+    description: "Registry hostname"
+    required: false
+    default: ghcr.io
+  username:
+    description: "Registry username (default: github.actor)"
+    required: false
+  token:
+    description: "Registry token (default: GITHUB_TOKEN)"
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Log in to registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ inputs.registry }}
+        username: ${{ inputs.username || github.actor }}
+        password: ${{ inputs.token || secrets.GITHUB_TOKEN }}

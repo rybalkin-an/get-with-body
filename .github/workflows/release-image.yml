@@ -5,8 +5,7 @@ on:
     types: [published]
 
 jobs:
-  push_to_registry:
-    name: Push image to GHCR
+  publish:
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -20,55 +19,40 @@ jobs:
     steps:
       - name: Check out the repo
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
+      - name: Run tests
+        uses: ./.github/actions/gradle-test
+        with:
+          java-version: "17"
+          gradle-args: "test"
+          working-directory: "."
+
+      - name: Login to GHCR
+        uses: ./.github/actions/ghcr-login
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          # token: ${{ secrets.GHCR_TOKEN }} # optional override
 
-      - name: Extract metadata (tags, labels) for Docker
+      - name: Compute Docker tags and labels
         id: meta
-        uses: docker/metadata-action@v5
+        uses: ./.github/actions/docker-meta-semver
         with:
-          images: ${{ env.IMAGE }}
-          # Generate tags:
-          #   v1.2.3  -> 1.2.3, 1.2, 1
-          #   Also push :latest only for stable (no hyphen) tags
-          tags: |
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
-          labels: |
-            org.opencontainers.image.source=${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
+          image: ${{ env.IMAGE }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        with:
-         install: true
-         driver-opts: |
-           image=moby/buildkit:latest
-
-      - name: Build and push Docker image
-        id: push
-        uses: docker/build-push-action@v6
+      - name: Build & push image
+        id: docker
+        uses: ./.github/actions/docker-build-push
         with:
           context: .
           file: ./Dockerfile
-          push: true
-          platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          provenance: false
 
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v3
         with:
           subject-name: ${{ env.IMAGE }}
-          subject-digest: ${{ steps.push.outputs.digest }}
+          subject-digest: ${{ steps.docker.outputs.digest }}
           push-to-registry: true

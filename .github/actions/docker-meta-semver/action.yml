@@ -1,0 +1,32 @@
+name: "Docker metadata semver"
+description: "Generate Docker tags and labels from semver"
+
+inputs:
+  image:
+    description: "Base image name"
+    required: true
+
+outputs:
+  tags:
+    description: "Computed tags"
+    value: ${{ steps.meta.outputs.tags }}
+  labels:
+    description: "Computed labels"
+    value: ${{ steps.meta.outputs.labels }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Extract metadata (tags, labels) for Docker
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ inputs.image }}
+        tags: |
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
+        labels: |
+          org.opencontainers.image.source=${{ github.repository }}
+          org.opencontainers.image.revision=${{ github.sha }}
