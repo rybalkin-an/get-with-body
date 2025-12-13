@@ -19,7 +19,6 @@ jobs:
       CONTAINER_NAME: ${{ secrets.CONTAINER_NAME }}
       TASK_DEF_PATH: .aws/task-definition.json
 
-      # Your GHCR image
       IMAGE: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
       IMAGE_TAG: ${{ github.event.release.tag_name }}
 
@@ -35,7 +34,7 @@ jobs:
 
       - name: Render task definition with new image tag
         id: render
-        uses: aws-actions/amazon-ecs-render-task-definition@v2
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
           task-definition: ${{ env.TASK_DEF_PATH }}
           container-name: ${{ env.CONTAINER_NAME }}
