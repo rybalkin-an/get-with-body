@@ -18,60 +18,63 @@ runs:
     - name: Add public endpoint to job summary
       shell: bash
       run: |
+        {
+          echo "## Deployment endpoint"
+          echo ""
+          echo "_Resolving endpoint..._"
+          echo ""
+        } >> "$GITHUB_STEP_SUMMARY"
+        
         set -euo pipefail
-
+        
         TASK_ARN="$(aws ecs list-tasks \
-          --region "${{ inputs.aws_region }}" \
-          --cluster "${{ inputs.cluster }}" \
-          --service-name "${{ inputs.service }}" \
-          --desired-status RUNNING \
-          --query 'taskArns[0]' \
-          --output text)"
-
+        --region "${{ inputs.aws_region }}" \
+        --cluster "${{ inputs.cluster }}" \
+        --service-name "${{ inputs.service }}" \
+        --desired-status RUNNING \
+        --query 'taskArns[0]' \
+        --output text || true)"
+        
         if [[ "$TASK_ARN" == "None" || -z "$TASK_ARN" ]]; then
-          {
-            echo "## Deployment endpoint"
-            echo ""
-            echo "No RUNNING tasks found for service \`${{ inputs.service }}\` in cluster \`${{ inputs.cluster }}\`."
-          } >> "$GITHUB_STEP_SUMMARY"
-          exit 1
-        fi
-
-        ENI_ID="$(aws ecs describe-tasks \
+        {
+        echo "No RUNNING tasks found (yet)."
+        echo ""
+        echo "- Cluster: \`${{ inputs.cluster }}\`"
+        echo "- Service: \`${{ inputs.service }}\`"
+        } >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+          fi
+          
+          ENI_ID="$(aws ecs describe-tasks \
           --region "${{ inputs.aws_region }}" \
           --cluster "${{ inputs.cluster }}" \
           --tasks "$TASK_ARN" \
           --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value | [0]" \
-          --output text)"
-
-        PUBLIC_IP="$(aws ec2 describe-network-interfaces \
+          --output text || true)"
+          
+          PUBLIC_IP="$(aws ec2 describe-network-interfaces \
           --region "${{ inputs.aws_region }}" \
           --network-interface-ids "$ENI_ID" \
           --query "NetworkInterfaces[0].Association.PublicIp" \
-          --output text)"
-
-        PUBLIC_DNS="$(aws ec2 describe-network-interfaces \
+          --output text || true)"
+          
+          PUBLIC_DNS="$(aws ec2 describe-network-interfaces \
           --region "${{ inputs.aws_region }}" \
           --network-interface-ids "$ENI_ID" \
           --query "NetworkInterfaces[0].Association.PublicDnsName" \
-          --output text)"
+          --output text || true)"
+          
+          PORT="${{ inputs.port }}"
+          if [[ "$PORT" == "80" ]]; then URL="http://$PUBLIC_DNS"; else URL="http://$PUBLIC_DNS:$PORT"; fi
+          
+          {
+            echo "Resolved"
+            echo ""
+            echo "- Task: \`$TASK_ARN\`"
+              echo "- Public DNS: \`$PUBLIC_DNS\`"
+              echo "- Public IP: \`$PUBLIC_IP\`"
+              echo ""
+              echo "### Open in browser"
+              echo "- $URL"
+          } >> "$GITHUB_STEP_SUMMARY"
 
-        PORT="${{ inputs.port }}"
-        if [[ "$PORT" == "80" ]]; then
-          URL="http://$PUBLIC_DNS"
-        else
-          URL="http://$PUBLIC_DNS:$PORT"
-        fi
-
-        {
-          echo "## Deployment endpoint"
-          echo ""
-          echo "- Cluster: \`${{ inputs.cluster }}\`"
-          echo "- Service: \`${{ inputs.service }}\`"
-          echo "- Task: \`$TASK_ARN\`"
-          echo "- Public DNS: \`$PUBLIC_DNS\`"
-          echo "- Public IP: \`$PUBLIC_IP\`"
-          echo ""
-          echo "### Open in browser"
-          echo "- $URL"
-        } >> "$GITHUB_STEP_SUMMARY" >/dev/null 2>&1
