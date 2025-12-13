@@ -1,0 +1,77 @@
+name: "ECS Public Endpoint Summary"
+description: "Fetch public DNS/IP for a running ECS task and write to GitHub Job Summary"
+
+inputs:
+  aws_region:
+    required: true
+  cluster:
+    required: true
+  service:
+    required: true
+  port:
+    required: false
+    default: "80"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Add public endpoint to job summary
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        TASK_ARN="$(aws ecs list-tasks \
+          --region "${{ inputs.aws_region }}" \
+          --cluster "${{ inputs.cluster }}" \
+          --service-name "${{ inputs.service }}" \
+          --desired-status RUNNING \
+          --query 'taskArns[0]' \
+          --output text)"
+
+        if [[ "$TASK_ARN" == "None" || -z "$TASK_ARN" ]]; then
+          {
+            echo "## Deployment endpoint"
+            echo ""
+            echo "No RUNNING tasks found for service \`${{ inputs.service }}\` in cluster \`${{ inputs.cluster }}\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
+        fi
+
+        ENI_ID="$(aws ecs describe-tasks \
+          --region "${{ inputs.aws_region }}" \
+          --cluster "${{ inputs.cluster }}" \
+          --tasks "$TASK_ARN" \
+          --query "tasks[0].attachments[0].details[?name=='networkInterfaceId'].value | [0]" \
+          --output text)"
+
+        PUBLIC_IP="$(aws ec2 describe-network-interfaces \
+          --region "${{ inputs.aws_region }}" \
+          --network-interface-ids "$ENI_ID" \
+          --query "NetworkInterfaces[0].Association.PublicIp" \
+          --output text)"
+
+        PUBLIC_DNS="$(aws ec2 describe-network-interfaces \
+          --region "${{ inputs.aws_region }}" \
+          --network-interface-ids "$ENI_ID" \
+          --query "NetworkInterfaces[0].Association.PublicDnsName" \
+          --output text)"
+
+        PORT="${{ inputs.port }}"
+        if [[ "$PORT" == "80" ]]; then
+          URL="http://$PUBLIC_DNS"
+        else
+          URL="http://$PUBLIC_DNS:$PORT"
+        fi
+
+        {
+          echo "## Deployment endpoint"
+          echo ""
+          echo "- Cluster: \`${{ inputs.cluster }}\`"
+          echo "- Service: \`${{ inputs.service }}\`"
+          echo "- Task: \`$TASK_ARN\`"
+          echo "- Public DNS: \`$PUBLIC_DNS\`"
+          echo "- Public IP: \`$PUBLIC_IP\`"
+          echo ""
+          echo "### Open in browser"
+          echo "- $URL"
+        } >> "$GITHUB_STEP_SUMMARY" >/dev/null 2>&1
