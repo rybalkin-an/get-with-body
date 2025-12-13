@@ -14,6 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      checks: write
 
     steps:
       - uses: actions/checkout@v5
@@ -25,8 +26,13 @@ jobs:
         with:
           java-version: "17"
           gradle-args: "test"
-          upload-reports: "true"
-          artifact-name: "unit-test-reports"
+
+      - name: Publish JUnit report
+        uses: mikepenz/action-junit-report@v6
+        if: success() || failure()
+        with:
+          report_paths: "**/build/test-results/test/TEST-*.xml"
+          check_name: "JUnit Test Report"
 
   publish:
     needs: test
