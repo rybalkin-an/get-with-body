@@ -1,5 +1,5 @@
 name: "Gradle tests"
-description: "Run Gradle tests with JDK"
+description: "Run Gradle tests with JDK + write a Job Summary + upload reports"
 
 inputs:
   java-version:
@@ -18,19 +18,110 @@ inputs:
     description: "Directory where Gradle should be run"
     required: false
     default: "."
+  upload-reports:
+    description: "Upload test reports as GitHub artifact (true/false)"
+    required: false
+    default: "true"
+  artifact-name:
+    description: "Artifact name for uploaded reports"
+    required: false
+    default: "test-reports"
 
 runs:
   using: "composite"
   steps:
-    - name: Set up JDK ${{ inputs.java-version }}
+    - name: Set up JDK
       uses: actions/setup-java@v4
       with:
         distribution: ${{ inputs.distribution }}
         java-version: ${{ inputs.java-version }}
 
     - name: Run Gradle
+      id: gradle
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
+        set +e
         chmod +x ./gradlew
         ./gradlew ${{ inputs.gradle-args }}
+        echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+        exit 0
+
+    - name: Test summary
+      if: always()
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        EXIT_CODE="${{ steps.gradle.outputs.exit_code }}"
+        REPORT_DIR="build/test-results/test"
+        HTML_REPORT="build/reports/tests/test/index.html"
+
+        {
+          echo "## Gradle tests"
+          echo ""
+          echo "- Command: \`./gradlew ${{ inputs.gradle-args }}\`"
+          echo "- Java: \`${{ inputs.distribution }} ${{ inputs.java-version }}\`"
+          echo "- Working dir: \`${{ inputs.working-directory }}\`"
+          echo ""
+
+          if [[ "$EXIT_CODE" == "0" ]]; then
+            echo "✅ Result: **PASS**"
+          else
+            echo "❌ Result: **FAIL** (exit code: \`$EXIT_CODE\`)"
+          fi
+
+          echo ""
+          if [ -d "$REPORT_DIR" ]; then
+            python - << 'PY'
+            import glob, xml.etree.ElementTree as ET
+            
+            files = glob.glob("build/test-results/test/**/*.xml", recursive=True)
+            tests=failures=errors=skipped=0
+          
+            for f in files:
+              try:
+                root = ET.parse(f).getroot()
+                tests += int(root.attrib.get("tests", 0))
+                failures += int(root.attrib.get("failures", 0))
+                errors += int(root.attrib.get("errors", 0))
+                skipped += int(root.attrib.get("skipped", 0) or root.attrib.get("disabled", 0) or 0)
+              except Exception:
+                pass
+              
+              passed = tests - failures - errors - skipped
+              print(f"- Total: **{tests}**")
+              print(f"- Passed: **{passed}**")
+              print(f"- Failed: **{failures}**")
+              print(f"- Errors: **{errors}**")
+              print(f"- Skipped: **{skipped}**")
+                PY
+                else
+                echo "No JUnit XML found in \`$REPORT_DIR\`"
+                fi
+                
+                echo ""
+                if [ -f "$HTML_REPORT" ]; then
+              echo "🧾 HTML report generated: \`$HTML_REPORT\`"
+                echo "> Uploading reports as artifact makes it downloadable from the workflow run."
+                fi
+              } >> "$GITHUB_STEP_SUMMARY"
+            
+            - name: Upload test reports artifact
+              if: ${{ always() && inputs.upload-reports == 'true' }}
+              uses: actions/upload-artifact@v4
+              with:
+                name: ${{ inputs.artifact-name }}
+                path: |
+                  ${{ inputs.working-directory }}/build/reports/tests/**/*
+                  ${{ inputs.working-directory }}/build/test-results/**/*
+                if-no-files-found: warn
+
+    - name: Upload test reports artifact
+      if: ${{ inputs.upload-reports == 'true' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: |
+          ${{ inputs.working-directory }}/build/reports/tests/**/*
+          ${{ inputs.working-directory }}/build/test-results/**/*
+        if-no-files-found: warn

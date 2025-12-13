@@ -3,19 +3,17 @@ name: Publish image + Deploy to ECS
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 env:
   IMAGE: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
-  IMAGE_TAG: ${{ github.event.release.tag_name }}
+  IMAGE_TAG: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
 
 jobs:
-  publish:
+  test:
     runs-on: ubuntu-latest
     permissions:
-      packages: write
       contents: read
-      attestations: write
-      id-token: write
 
     steps:
       - uses: actions/checkout@v5
@@ -27,6 +25,22 @@ jobs:
         with:
           java-version: "17"
           gradle-args: "test"
+          upload-reports: "true"
+          artifact-name: "unit-test-reports"
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Login to GHCR
         uses: ./.github/actions/ghcr-login
@@ -59,15 +73,16 @@ jobs:
   deploy:
     needs: publish
     runs-on: ubuntu-latest
+    environment: AWS
     permissions:
       id-token: write
       contents: read
 
     env:
       AWS_REGION: ${{ vars.AWS_REGION }}
-      ECS_CLUSTER: ${{ secrets.ECS_CLUSTER }}
-      ECS_SERVICE: ${{ secrets.ECS_SERVICE }}
-      CONTAINER_NAME: ${{ secrets.CONTAINER_NAME }}
+      ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+      ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+      CONTAINER_NAME: ${{ vars.CONTAINER_NAME }}
       TASK_DEF_PATH: .aws/task-definition.json
 
     steps:
