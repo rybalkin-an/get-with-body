@@ -105,11 +105,11 @@ runs:
         if-no-files-found: warn
 
     - name: Upload test reports artifact
-      if: ${{ inputs.upload-reports == 'true' }}
+      if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ inputs.artifact-name }}
+        name: unit-test-reports
         path: |
-          ${{ inputs.working-directory }}/build/reports/tests/**/*
-          ${{ inputs.working-directory }}/build/test-results/**/*
+          build/reports/tests/**/*
+          build/test-results/**/*
         if-no-files-found: warn
