@@ -95,16 +95,6 @@ runs:
         exit $EXIT_CODE
 
     - name: Upload test reports artifact
-      if: ${{ always() && inputs.upload-reports == 'true' }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{ inputs.artifact-name }}
-        path: |
-          ${{ inputs.working-directory }}/build/reports/tests/**/*
-          ${{ inputs.working-directory }}/build/test-results/**/*
-        if-no-files-found: warn
-
-    - name: Upload test reports artifact
       if: always()
       uses: actions/upload-artifact@v4
       with:
