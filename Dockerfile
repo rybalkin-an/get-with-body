@@ -1,14 +1,16 @@
-FROM amazoncorretto:17
+FROM amazoncorretto:17 AS build
+WORKDIR /workspace
 
-WORKDIR /app
-
-COPY build.gradle .
-COPY settings.gradle .
 COPY gradlew .
-COPY gradle/ ./gradle/
+COPY gradle/ gradle/
+COPY build.gradle settings.gradle ./
+RUN chmod +x gradlew && ./gradlew --no-daemon dependencies
 
-COPY . .
+COPY src/ src/
+RUN ./gradlew --no-daemon clean bootJar
 
-RUN chmod +x gradlew && ./gradlew build
-EXPOSE 8080
-CMD ["java", "-jar", "build/libs/get-with-body-0.0.1-SNAPSHOT.jar"]
+FROM amazoncorretto:17-alpine
+WORKDIR /app
+COPY --from=build /workspace/build/libs/*.jar app.jar
+EXPOSE 80
+ENTRYPOINT ["java","-jar","/app/app.jar"]
