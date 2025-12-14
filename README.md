@@ -1,100 +1,148 @@
-# GET Request with body
+# GET Request with Body
 
-Example of endpoint that use GET Request with body
+This project demonstrates a **GET request with a request body** in Spring Boot.
+
+⚠️ **Important note:**  
+While Spring Boot (and HTTP in general) technically allows GET requests with a body, **web browsers do not**.  
+Swagger UI uses the browser `fetch()` API, which **forbids GET/HEAD requests with a body**.  
+As a result, **Swagger UI cannot execute this endpoint**, even though the backend supports it.
+
+Use **curl or other non-browser HTTP clients** to test the GET-with-body endpoint.
+
+---
 
 ## Table of Contents
 
 - [Installation](#installation)
 - [Run the Application](#run-the-application)
-- [Usage](#usage)
+- [Usage (curl)](#usage-curl)
 - [Tests](#tests)
 - [Built With](#built-with)
 
+---
 
-### Installation
+## Installation
 
-1. **Clone the repository:**
+### Clone and build locally
 
-   ```bash
-   git clone https://github.com/rybalkin-an/get-with-body.git
-    ```
-2. **Install dependencies**
-   ```bash
-   ./gradlew build
-   ```
-   
-### Run the Application
+```bash
+git clone https://github.com/rybalkin-an/get-with-body.git
+cd get-with-body
+./gradlew build
+```
 
-1. **If you have installed Java 17 and Gradle 8.3 on you PC:**
+---
 
-   ```bash
-   ./gradlew build
-   ```
-   
-   ```bash
-   ./gradlew bootRun
-   ```
+## Run the Application
 
-If you don't have JAVA you can run application inside a Docker container:
+### Option 1: Run locally (Java 17 required)
 
-1. **Build the Docker image using the Dockerfile:**
+```bash
+./gradlew bootRun
+```
 
-   ```bash
-   docker build https://github.com/rybalkin-an/get-with-body.git -t image-name:latest
-   ```
-   
-2. **Run the container:**
-
-   ```bash
-   docker run -p 8080:8080 image-name
-   ```
-The application will start on http://localhost:8080.
-
-### Usage
+Application starts at:
 
 ```
-Request method:	GET                                       <= Request
-Request URI:	http://localhost:8080/api/getExample
-Proxy:			<none>
-Request params:	<none>
-Query params:	<none>
-Form params:	<none>
-Path params:	<none>
-Headers:		Content-Type=text/plain
-Cookies:		<none>
-Multiparts:		<none>
-Body:
-someText
-200                                                       <= Response
-Content-Type: text/plain;charset=ISO-8859-1
-Content-Length: 49
-
-Response from GET request with body: someText           
+http://localhost
 ```
-```
-Request method:	POST                                      <= Request
-Request URI:	http://localhost:8080/api/postExample
-Proxy:			<none>
-Request params:	<none>
-Query params:	<none>
-Form params:	<none>
-Path params:	<none>
-Headers:		Content-Type=text/plain
-Cookies:		<none>
-Multiparts:		<none>
-Body:			<none>
-200                                                       <= Response
-Content-Type: text/plain;charset=ISO-8859-1
-Content-Length: 39
 
+---
+
+### Option 2: Run with Docker (build locally)
+
+```bash
+docker build -t get-with-body:latest .
+docker run --rm -p 80:80 get-with-body:latest
+```
+
+Application starts at:
+
+```
+http://localhost
+```
+
+---
+
+### Option 3: Run using prebuilt image from GHCR
+
+You can pull the prebuilt image directly from GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/rybalkin-an/get-with-body:latest
+```
+
+Run it:
+
+```bash
+docker run --rm -p 80:80 ghcr.io/rybalkin-an/get-with-body:latest
+```
+
+---
+
+## Usage (curl)
+
+### GET request with body (NOT supported by browsers / Swagger UI)
+
+```bash
+curl -X GET \
+  http://localhost/api/getExample \
+  -H "Content-Type: text/plain" \
+  --data-raw "someText"
+```
+
+**Response:**
+```text
+Response from GET request with body: someText
+```
+
+---
+
+### POST request without body
+
+```bash
+curl -X POST \
+  http://localhost/api/postExample
+```
+
+**Response:**
+```text
 Response from POST request without body
 ```
-### Tests
-   ```bash
-   ./gradlew test
-   ```
 
-### Built With
-- Spring Boot - The web framework used
-- Gradle - Build and dependency management tool
-- RestAssured - Testing and validating REST services
+---
+
+## Swagger UI limitation
+
+Swagger UI runs in the browser and uses `window.fetch()` internally.
+
+Browsers enforce this rule:
+
+> ❌ **GET / HEAD requests cannot have a request body**
+
+Because of this:
+- Swagger UI will either show the input as a query parameter **or**
+- Fail with:
+  ```
+  TypeError: Failed to execute 'fetch' on 'Window':
+  Request with GET/HEAD method cannot have body
+  ```
+
+This is a **browser restriction**, not a Spring Boot or Swagger bug.
+
+---
+
+## Tests
+
+```bash
+./gradlew test
+```
+
+---
+
+## Built With
+
+- **Spring Boot** – Web framework
+- **Gradle** – Build and dependency management
+- **springdoc-openapi** – OpenAPI / Swagger UI integration
+- **RestAssured** – REST API testing
