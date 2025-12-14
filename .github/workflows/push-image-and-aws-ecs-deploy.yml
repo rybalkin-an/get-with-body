@@ -77,7 +77,8 @@ jobs:
           push-to-registry: true
 
   deploy:
-    needs: publish
+    needs: [ test, publish ]
+    if: ${{ always() && needs.test.result == 'success' && (github.event_name == 'workflow_dispatch' || needs.publish.result == 'success') }}
     runs-on: ubuntu-latest
     environment: AWS
     permissions:
