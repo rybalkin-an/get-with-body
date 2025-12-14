@@ -20,6 +20,7 @@ env:
 jobs:
   delete:
     runs-on: ubuntu-latest
+    environment: AWS
 
     steps:
       - name: Configure AWS credentials (OIDC)
